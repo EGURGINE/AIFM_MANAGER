@@ -1,0 +1,15 @@
+{
+  "name": "touchline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "친구들과 함께 쓰는 FM 멀티플레이 프라이빗 SNS",
+  "engines": { "node": ">=24.0.0 <25" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "dev": "node --watch --env-file-if-exists=.env server/index.js",
+    "test": "node --test --test-concurrency=1",
+    "check": "node scripts/check.mjs",
+    "collector": "node --env-file-if-exists=collector/.env collector/index.js"
+  }
+}

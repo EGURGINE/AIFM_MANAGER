@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+!.env.example
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+.DS_Store
+test-results/
+.preview/
+.analysis/
+.local/
+collector/.state/
+collector/*.log
+AIFM-분석-및-FM-보조매니저-설계.md

@@ -1,0 +1,10 @@
+{
+  "name": "TOUCHLINE · 우리끼리의 축구 이야기",
+  "short_name": "TOUCHLINE",
+  "lang": "ko",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f6f7",
+  "theme_color": "#171d1b",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
