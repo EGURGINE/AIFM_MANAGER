@@ -4,6 +4,7 @@ param(
   [switch]$WithOcr
 )
 $ErrorActionPreference = 'Stop'
+$OutputPath = [IO.Path]::GetFullPath($OutputPath)
 [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $expectedExe = [IO.Path]::GetFullPath($GameExecutable)
 $process = Get-Process -Name fm -ErrorAction SilentlyContinue | Where-Object {
@@ -77,6 +78,6 @@ if ($WithOcr) {
         $text = $ocr.Text
       } finally { $software.Dispose() }
     } finally { $stream.Dispose() }
-  } catch { $ocrError = $_.Exception.Message }
+  } catch { $ocrError = $_.Exception.GetBaseException().Message }
 }
 @{ok=$true;path=$OutputPath;text=$text;ocrError=$ocrError} | ConvertTo-Json -Compress
