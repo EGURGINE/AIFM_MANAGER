@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, unlinkS
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { fingerprint, combineEvents, relevantInbox, buildEventPayload, StableScreenDetector } from './events.js';
+import { fingerprint, combineEvents, relevantInbox, buildEventPayload, StableScreenDetector, isInbox } from './events.js';
 import { collectorConfig } from './config.js';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -86,7 +86,11 @@ async function tickScreen() {
   const shot = await capture(true);
   if (!shot) return;
   if (shot.ocrError) { status('Windows OCR를 사용할 수 없습니다. 한국어/영어 OCR 언어팩 또는 FM 브리지가 필요합니다.'); return; }
-  if (!screenDetector.observe(shot.text)) { status('화면 감시 중 · 메시지함 텍스트가 안정적으로 바뀌면 캡처합니다.'); return; }
+  const initial = screenDetector.baseline === null;
+  if (!screenDetector.observe(shot.text)) {
+    status(!isInbox(shot.text) ? 'FM 화면 판독됨 · 메시지 목록이 보이는 화면을 기다립니다.' : initial ? '메시지 목록 인식 완료 · 현재 화면을 기준으로 다음 변화를 감시합니다.' : '메시지 목록 감시 중 · 내용이 안정적으로 바뀌면 캡처합니다.');
+    return;
+  }
   const key = fingerprint(shot.text.replace(/\s+/g, ' ').trim());
   if (state.seen.includes(key)) return;
   state.queue = { keys: [key], payload: { eventKey: `screen:${state.epoch}:${key}`, title: 'FM 받은편지함 화면이 갱신됐습니다.', text: shot.text.slice(0, 14000), image: shot.image, source: 'screen', eventType: 'screen_change' } };

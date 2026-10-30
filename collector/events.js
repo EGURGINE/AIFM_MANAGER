@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto';
 export const fingerprint = value => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex');
-export const isInbox = text => /받은\s*편지함|메시지함|\binbox\b|NewsTitleString|NewsBodyString/i.test(text || '');
+export function isInbox(text = '') {
+  if (/받은\s*편지함|메시지함|\binbox\b|NewsTitleString|NewsBodyString/i.test(text)) return true;
+  // FM27 labels this panel "메시지". Require list controls as well, since
+  // its navigation link is present on unrelated screens. OCR can read 메 as 에.
+  return /[메에]시지|\bmessages\b/i.test(text)
+    && /읽지\s*않음|\bunread\b/i.test(text)
+    && /업무\s*\(|신규|\btasks\b|\bnew\b/i.test(text);
+}
 export function normalizeEvent(event) {
   if (!event || !['news', 'news_body', 'day_change'].includes(event.type)) return null;
   if (event.type === 'day_change') return { key: `day:${fingerprint(event)}`, type: event.type, title: '게임 내 날짜가 변경됐습니다.', text: '' };

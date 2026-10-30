@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { combineEvents, relevantInbox, buildEventPayload, StableScreenDetector } from '../collector/events.js';
+import { combineEvents, relevantInbox, buildEventPayload, StableScreenDetector, isInbox } from '../collector/events.js';
+
+test('FM27 message list is recognized despite OCR noise, but navigation alone is not', () => {
+  assert.equal(isInbox('포털 에시지 전처 신규 업무 (4) 읽지 않음(12) 이적 제안'), true);
+  assert.equal(isInbox('메시지 전체 신규 업무 (4) 읽지 않음(12)'), true);
+  assert.equal(isInbox('Messages All New Tasks (4) Unread (12)'), true);
+  assert.equal(isInbox('포털 메시지 전술 선수단'), false);
+  assert.equal(isInbox('메시지 읽기 계속 진행 게임 설정'), false);
+});
 import { collectorConfig } from '../collector/config.js';
 
 test('FM27 defaults to its own executable and OCR; queues cannot cross leagues or versions', () => {

@@ -44,7 +44,7 @@ if ($width -lt 200 -or $height -lt 200) { @{ok=$false;reason='window_too_small'}
 $bitmap = New-Object System.Drawing.Bitmap($width,$height)
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 try { $graphics.CopyFromScreen($left,$top,0,0,$bitmap.Size) } finally { $graphics.Dispose() }
-$scale = [Math]::Min(1,1600.0/[Math]::Max($width,$height))
+$scale = [Math]::Min(1,2400.0/[Math]::Max($width,$height))
 $result = New-Object System.Drawing.Bitmap([int]($width*$scale),[int]($height*$scale))
 $resize = [System.Drawing.Graphics]::FromImage($result)
 try {
