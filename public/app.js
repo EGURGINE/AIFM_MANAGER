@@ -367,7 +367,8 @@ document.addEventListener('submit', async event => {
       const postId = form.dataset.postId;
       await api(`/posts/${postId}/comments`, { method: 'POST', body: data });
       delete state.commentDrafts[postId];
-      form.reset(); const result = await api(`/posts/${postId}/comments`);
+      $('textarea[name="body"]', form).value = '';
+      const result = await api(`/posts/${postId}/comments`);
       if (state.commentPost === postId && $('#comments-list')) { state.comments = result.comments; $('#comments-list').innerHTML = commentsList(); $('#comments-list').scrollTop = $('#comments-list').scrollHeight; }
       await refresh(true);
     }
