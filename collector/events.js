@@ -4,7 +4,7 @@ export function isInbox(text = '') {
   if (/받은\s*편지함|메시지함|\binbox\b|NewsTitleString|NewsBodyString/i.test(text)) return true;
   // FM27 labels this panel "메시지". Require list controls as well, since
   // its navigation link is present on unrelated screens. OCR can read 메 as 에.
-  return /[메에]시지|\bmessages\b/i.test(text)
+  return /[메에매]시지|\bmessages\b/i.test(text)
     && /읽지\s*않음|\bunread\b/i.test(text)
     && /업무\s*\(|신규|\btasks\b|\bnew\b/i.test(text);
 }
@@ -44,12 +44,15 @@ export function buildEventPayload(events, screen, epoch) {
 }
 
 export class StableScreenDetector {
-  constructor() { this.baseline = null; this.candidate = null; this.repeats = 0; }
+  constructor({ captureInitial = false } = {}) { this.baseline = null; this.candidate = null; this.repeats = 0; this.captureInitial = captureInitial; }
   observe(text) {
     if (!isInbox(text)) { this.candidate = null; this.repeats = 0; return false; }
     const normalized = text.replace(/\s+/g, ' ').trim();
     const hash = fingerprint(normalized);
-    if (this.baseline === null) { this.baseline = hash; return false; }
+    if (this.baseline === null) {
+      if (!this.captureInitial) { this.baseline = hash; return false; }
+      this.baseline = '';
+    }
     if (hash === this.baseline) { this.candidate = null; this.repeats = 0; return false; }
     if (hash !== this.candidate) { this.candidate = hash; this.repeats = 1; return false; }
     if (++this.repeats < 2) return false;

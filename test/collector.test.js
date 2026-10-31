@@ -49,3 +49,11 @@ test('OCR requires an inbox baseline and a stable changed screen', () => {
   assert.equal(detector.observe('받은편지함 메시지 B'), true);
   assert.equal(detector.observe('받은편지함  메시지 B'), false);
 });
+
+test('initial capture can collect an already-open inbox without another click', () => {
+  const detector = new StableScreenDetector({ captureInitial: true });
+  assert.equal(detector.observe('전술 화면'), false);
+  assert.equal(detector.observe('메시지 전체 신규 업무(0) 읽지 않음(0) 토트넘 경기 소식'), false);
+  assert.equal(detector.observe('메시지 전체 신규 업무(0) 읽지 않음(0) 토트넘 경기 소식'), true);
+  assert.equal(detector.observe('메시지 전체 신규 업무(0) 읽지 않음(0) 토트넘 경기 소식'), false);
+});

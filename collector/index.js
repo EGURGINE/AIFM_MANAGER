@@ -19,7 +19,7 @@ const bridge = (process.env.BRIDGE_URL || 'http://127.0.0.1:47831').replace(/\/$
 const interval = Math.max(2000, Number(process.env.POLL_MS) || 3000);
 const cooldown = Math.max(5000, Number(process.env.CAPTURE_COOLDOWN_MS) || 15000);
 const exec = promisify(execFile);
-const screenDetector = new StableScreenDetector();
+const screenDetector = new StableScreenDetector({ captureInitial: process.env.CAPTURE_INITIAL !== 'false' });
 let stopping = false;
 let previousStatus = '';
 let pendingChanged = 0;
@@ -41,6 +41,7 @@ async function capture(withOcr = false) {
 }
 async function upload() {
   if (!state.queue) return;
+  status('수집한 화면으로 기사와 팬 반응을 작성 중입니다. 잠시 기다려 주세요.');
   const response = await fetch(`${server}/api/collector/events`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(state.queue.payload), signal: AbortSignal.timeout(240000)
