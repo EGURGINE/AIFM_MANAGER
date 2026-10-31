@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { openDatabase, transaction, id, now } from './db.js';
 import { hashPassword, verifyPassword, createSession, sessionUser, sessionToken, sessionCookie, hashToken } from './auth.js';
-import { writeMatchArticle, writeNewsArticle } from './match.js';
+import { writeMatchArticle } from './match.js';
+import { generateNews } from './news.js';
 
 const publicDir = fileURLToPath(new URL('../public/', import.meta.url));
 const avatars = ['mint', 'violet', 'amber', 'rose', 'sky', 'slate'];
@@ -38,6 +39,8 @@ export function createApp(options = {}) {
     joinKey: options.joinKey ?? process.env.SERVER_JOIN_KEY ?? '',
     ollamaUrl: options.ollamaUrl ?? process.env.OLLAMA_URL ?? 'http://127.0.0.1:11434',
     ollamaModel: options.ollamaModel ?? process.env.OLLAMA_MODEL ?? '',
+    newsProvider: options.newsProvider ?? process.env.NEWS_PROVIDER ?? 'none',
+    codexBin: options.codexBin ?? process.env.CODEX_BIN ?? 'codex',
   };
   const db = openDatabase(config.database);
   const limits = new Map();
@@ -81,6 +84,8 @@ export function createApp(options = {}) {
       id: post.id, body: post.body, kind: post.kind, createdAt: post.created_at,
       author: { id: post.author_id, alias: post.bot_name || post.alias, avatar: post.avatar || 'mint', bot: !!post.bot_name },
       match: post.match_json ? JSON.parse(post.match_json) : null,
+      article: db.prepare('SELECT headline,topic FROM news_articles WHERE post_id=?').get(post.id) || null,
+      previewComments: db.prepare('SELECT bot_name AS name,body FROM comments WHERE post_id=? AND bot_name IS NOT NULL ORDER BY rowid LIMIT 3').all(post.id),
       capture: (() => { const c = db.prepare('SELECT source,captured_at,image IS NOT NULL AS has_image FROM captures WHERE post_id=?').get(post.id); return c ? { source: c.source, capturedAt: c.captured_at, hasImage: !!c.has_image } : null; })(),
       commentCount: db.prepare('SELECT COUNT(*) AS n FROM comments WHERE post_id=?').get(post.id).n,
       reactions: Object.fromEntries(reactions.map(r => [r.kind, r.count])),
@@ -161,19 +166,27 @@ export function createApp(options = {}) {
         if (!event.text && !image) fail(400, '수집된 텍스트 또는 화면이 필요합니다.');
         ingestBusy.add(collector.id);
         try {
-          const article = await writeNewsArticle(event, config);
+          const history = db.prepare(`SELECT p.body,n.headline FROM news_articles n JOIN posts p ON p.id=n.post_id WHERE n.room_id=? ORDER BY p.rowid DESC LIMIT 6`).all(collector.room_id);
+          const fanHistory = db.prepare(`SELECT c.bot_name AS name,c.body FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.room_id=? AND c.bot_name IS NOT NULL ORDER BY c.rowid DESC LIMIT 15`).all(collector.room_id);
+          let article;
+          try { article = await (options.newsGenerator || generateNews)(event, { articles: history, fanHistory }, config); }
+          catch (error) { fail(503, error.message); }
+          if (!article.publishable) return send(200, { skipped: true, warning: '새 기사로 쓸 수 있는 본문이 없어 건너뛰었습니다.' });
+          const existing = db.prepare('SELECT post_id FROM news_articles WHERE room_id=? AND event_identity=?').get(collector.room_id, article.eventIdentity);
+          if (existing) return send(200, { id: existing.post_id, duplicate: true });
           // A host may revoke a collector while its AI request is in flight.
           if (!db.prepare('SELECT id FROM collectors WHERE id=? AND revoked=0').get(collector.id)) fail(401, '수집기 연결이 해제되었습니다.');
           const postId = id();
           transaction(db, () => {
             db.prepare('INSERT INTO posts(id,room_id,kind,bot_name,body,created_at) VALUES(?,?,?,?,?,?)')
-              .run(postId, collector.room_id, 'news', article.source === 'ai' ? '터치라인 AI' : 'FM 소식봇', article.body, now());
+              .run(postId, collector.room_id, 'news', '터치라인 풋볼 · 서준 기자', article.body, now());
+            db.prepare('INSERT INTO news_articles VALUES(?,?,?,?,?,?)').run(postId, collector.room_id, article.headline, article.topic, article.eventIdentity, JSON.stringify(article.facts));
             db.prepare('INSERT INTO captures VALUES(?,?,?,?,?,?,?,?)').run(id(), collector.id, eventKey, postId, image, image ? 'image/png' : null, event.source, now());
             db.prepare('UPDATE collectors SET last_seen=? WHERE id=?').run(now(), collector.id);
-            article.comments.forEach((text, i) => db.prepare('INSERT INTO comments(id,post_id,bot_name,body,created_at) VALUES(?,?,?,?,?)')
-              .run(id(), postId, ['터치라인 관중', '라커룸 소식통', '원정석 평론가'][i] + ' · AI', text, now()));
+            article.comments.forEach(comment => db.prepare('INSERT INTO comments(id,post_id,bot_name,body,created_at) VALUES(?,?,?,?,?)')
+              .run(id(), postId, comment.name, comment.body, now()));
           });
-          return send(201, { id: postId, warning: article.warning || null, source: article.source });
+          return send(201, { id: postId, source: 'ai' });
         } finally { ingestBusy.delete(collector.id); }
       }
       if (route === '/api/config' && method === 'GET') return send(200, { aiEnabled: !!config.ollamaModel, joinKeyRequired: !!config.joinKey });
@@ -251,7 +264,7 @@ export function createApp(options = {}) {
         const [, roomId, action = ''] = match;
         const room = roomFor(roomId, user.id);
         if (action === 'state' && method === 'GET') {
-          const rows = db.prepare(`SELECT p.*,u.alias,u.avatar FROM posts p LEFT JOIN users u ON u.id=p.author_id WHERE p.room_id=? ORDER BY p.rowid DESC LIMIT 100`).all(roomId);
+          const rows = db.prepare(`SELECT p.*,u.alias,u.avatar FROM posts p LEFT JOIN users u ON u.id=p.author_id WHERE p.room_id=? AND (p.kind!='news' OR EXISTS(SELECT 1 FROM news_articles n WHERE n.post_id=p.id)) ORDER BY p.rowid DESC LIMIT 100`).all(roomId);
           const recentMatches = db.prepare(`SELECT id,match_json,created_at FROM posts WHERE room_id=? AND kind='match' ORDER BY rowid DESC LIMIT 12`).all(roomId)
             .map(p => ({ id: p.id, ...JSON.parse(p.match_json), createdAt: p.created_at }));
           const collectors = room.owner_id === user.id ? db.prepare('SELECT id,name,created_at,last_seen FROM collectors WHERE room_id=? AND revoked=0 ORDER BY created_at').all(roomId) : [];
@@ -382,7 +395,7 @@ export function createApp(options = {}) {
       send(error.status || 500, { error: error.status ? error.message : '서버에 문제가 생겼습니다. 잠시 후 다시 시도해 주세요.' });
     }
   });
-  server.requestTimeout = 60000;
+  server.requestTimeout = 240000;
   server.headersTimeout = 15000;
   return { server, db, config, close: () => new Promise(resolve => server.close(() => { db.close(); resolve(); })) };
 }

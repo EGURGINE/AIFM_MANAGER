@@ -23,7 +23,7 @@ async function register(login) {
   return { ...r.data.user, cookie: r.cookie };
 }
 before(async () => {
-  app = createApp({ database, ollamaModel: '', joinKey: 'host-key' });
+  app = createApp({ database, ollamaModel: '', joinKey: 'host-key', newsGenerator: async event => ({ publishable: true, headline: '새 경기 일정 발표', body: '새 경기 일정이 발표됐습니다. 리그 팬들은 다음 경기를 기다리고 있습니다.', topic: 'club', eventIdentity: event.title, facts: ['경기 일정 발표'], comments: [{ name: '전술판지박령', body: '다음 상대부터 분석해야지.' }, { name: '일단우승예약', body: '일단 직관 일정 잡는다.' }, { name: '원정석침투', body: '원정석에서 기다린다.' }] }) });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${app.server.address().port}`;
   alice = await register('alice'); bob = await register('bob'); carol = await register('carol'); outsider = await register('outsider');

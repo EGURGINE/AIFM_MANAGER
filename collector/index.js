@@ -43,13 +43,14 @@ async function upload() {
   if (!state.queue) return;
   const response = await fetch(`${server}/api/collector/events`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(state.queue.payload), signal: AbortSignal.timeout(60000)
+    body: JSON.stringify(state.queue.payload), signal: AbortSignal.timeout(240000)
   });
   const result = await response.json();
   if (!response.ok) {
     if (response.status === 401) { status('연결 키가 해제되었거나 잘못되었습니다. 수집기를 종료합니다.'); stopping = true; return; }
     if ([400, 413, 415].includes(response.status)) { state.queue = null; save(); status(`잘못된 캡처를 건너뜁니다: ${result.error}`); return; }
     if (response.status === 429) { state.lastUpload = Date.now() + 60000; save(); }
+    if (response.status === 503) { state.lastUpload = Date.now() + 60000; save(); }
     throw new Error(result.error || `Upload HTTP ${response.status}`);
   }
   state.seen = [...new Set([...state.seen, ...state.queue.keys])].slice(-1500);

@@ -14,3 +14,20 @@
  .collector-list small { display:block; margin:6px 0; }
  .collector-config { width:100%; font-family:monospace; font-size:12px; overflow-wrap:anywhere; }
  .collector-command { display:block; overflow-wrap:anywhere; padding:12px; background:#f1f5f2; border-radius:8px; }
+ .news-heading { padding:0 24px; }
+ .news-heading > span { font-size:10px; letter-spacing:1.5px; color:#66876f; font-weight:700; }
+ .news-heading h2 { font-size:24px; line-height:1.4; margin:12px 0 0; letter-spacing:-.7px; }
+ .fan-preview { margin:0 24px 18px; padding:16px 18px; background:#f5f7f4; border-radius:14px; }
+ .fan-caption { font-size:12px; font-weight:700; margin-bottom:14px; }
+ .fan-caption span { float:right; color:#7c887f; font-size:10px; font-weight:400; }
+ .fan-line { padding:9px 0; border-top:1px solid #e6ebe5; }
+ .fan-line b { font-size:12px; color:#3e6450; }
+ .fan-line p { font-size:13px; line-height:1.65; margin:5px 0; }
+ .source-details { margin:0 24px 16px; font-size:11px; color:#879087; }
+ .source-details summary { cursor:pointer; }
+ .source-details .capture-preview { margin:12px 0; }
+ .inline-comments { padding:0 24px 22px; border-top:1px solid #edf0eb; }
+ .inline-comments .comments-list { max-height:none; overflow:visible; padding-top:16px; }
+ .inline-comments textarea { width:100%; margin-top:14px; padding:13px; border:1px solid #dce4da; border-radius:12px; resize:vertical; font:inherit; font-size:13px; background:#fafbf8; }
+ .inline-comment-bottom { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:9px; }
+ .inline-comment-bottom > span { font-size:10px; color:#879087; }

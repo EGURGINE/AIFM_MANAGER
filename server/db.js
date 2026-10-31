@@ -67,6 +67,12 @@ export function openDatabase(filename) {
       image BLOB, mime TEXT, source TEXT NOT NULL, captured_at TEXT NOT NULL,
       UNIQUE(collector_id,event_key)
     );
+    CREATE TABLE IF NOT EXISTS news_articles (
+      post_id TEXT PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,
+      room_id TEXT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+      headline TEXT NOT NULL, topic TEXT NOT NULL, event_identity TEXT NOT NULL,
+      facts_json TEXT NOT NULL, UNIQUE(room_id,event_identity)
+    );
   `);
   return db;
 }

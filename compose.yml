@@ -16,6 +16,7 @@ services:
       SERVER_JOIN_KEY: ${SERVER_JOIN_KEY:-}
       OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+      NEWS_PROVIDER: ${NEWS_PROVIDER:-none}
     volumes:
       - ./data:/app/data
     security_opt:

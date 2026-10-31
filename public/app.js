@@ -30,9 +30,9 @@ const icons = {
   trash: '<path d="M3 6h18M9 6V3h6v3m-10 0 1 15h12l1-15M10 10v7m4-7v7"/>',
 };
 const icon = (name, cls = '') => `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.ball}</svg>`;
-const state = { user: null, rooms: [], roomId: '', data: null, view: 'feed', filter: 'all', search: '', demo: true, config: {}, peer: null, messages: [], commentPost: null, comments: [], busy: false };
+const state = { user: null, rooms: [], roomId: '', data: null, view: 'feed', filter: 'all', search: '', demo: true, config: {}, peer: null, messages: [], commentPost: null, comments: [], commentDrafts: {}, busy: false };
 const names = { all: '전체 피드', match: 'FM 소식', talk: '라커룸', rumor: '이적시장' };
-const kinds = { talk: '라커룸', banter: '도발 한 스푼', rumor: '이적시장', match: '매치데이', news: 'FM 자동 수집' };
+const kinds = { talk: '라커룸', banter: '도발 한 스푼', rumor: '이적시장', match: '매치데이', news: '풋볼 뉴스' };
 const sampleTime = minutes => new Date(Date.now() - minutes * 60000).toISOString();
 const demoMembers = [
   { id: 'demo-1', alias: '전술은거들뿐', avatar: 'violet', club: '맨체스터 유나이티드' },
@@ -113,10 +113,11 @@ function scoreBoard(match, small = false) {
   return `<div class="scoreboard ${small ? 'compact' : ''}"><div class="score-meta"><span>${icon('ball')} ${small ? '최근 경기' : esc(match.gameDate || '경기 결과')}</span><span class="ft">FULL TIME</span></div><div class="score-line"><div class="team"><span class="crest home-crest">${esc(match.home.slice(0, 1))}</span><b>${esc(match.home)}</b></div><div class="score"><strong>${match.homeScore}<span>:</span>${match.awayScore}</strong><small>최종 스코어</small></div><div class="team"><span class="crest away-crest">${esc(match.away.slice(0, 1))}</span><b>${esc(match.away)}</b></div></div></div>`;
 }
 function postCard(post) {
-  return `<article class="post-card" data-post="${esc(post.id)}"><div class="post-top">${avatar(post.author)}<div class="post-author"><b>${esc(post.author.alias)}${post.author.bot ? `<span class="bot-badge">${state.demo || post.match?.source === 'ai' ? 'AI' : 'BOT'}</span>` : ''}</b><span>${timeAgo(post.createdAt)} <i>·</i> ${post.author.bot ? (post.match?.source === 'summary' ? '입력한 기록으로 작성' : '가상 기자의 경기 이야기') : '익명의 감독'}</span></div><span class="post-kind ${post.kind}">${kinds[post.kind]}</span>${post.canDelete ? `<button class="icon-button subtle" data-action="delete-post" data-id="${post.id}" aria-label="게시글 삭제">${icon('trash')}</button>` : ''}</div>
-    ${post.match ? scoreBoard(post.match) : ''}<div class="post-body">${esc(post.body)}</div>
-    ${post.capture?.hasImage ? `<a class="capture-preview" href="/api/posts/${encodeURIComponent(post.id)}/image" target="_blank" rel="noopener"><img src="/api/posts/${encodeURIComponent(post.id)}/image" alt="FM 받은편지함 캡처" loading="lazy"><span>게임 화면 크게 보기</span></a>` : ''}
-    <div class="post-actions"><div class="reactions">${[['fire', '불붙었다'], ['laugh', '웃겨요'], ['salt', '긁혔어요']].map(([k, label]) => `<button class="reaction ${post.myReaction === k ? 'on' : ''}" data-action="react" data-id="${post.id}" data-kind="${k}" aria-label="${label}" aria-pressed="${post.myReaction === k}" title="${label}">${icon(k)}<span>${post.reactions[k] || 0}</span></button>`).join('')}</div><button class="comment-button" data-action="comments" data-id="${post.id}">${icon('chat')} 댓글 <b>${post.commentCount}</b></button></div></article>`;
+  return `<article class="post-card" data-post="${esc(post.id)}"><div class="post-top">${avatar(post.author)}<div class="post-author"><b>${esc(post.author.alias)}${post.author.bot ? `<span class="bot-badge">${state.demo || post.article || post.match?.source === 'ai' ? 'AI' : 'BOT'}</span>` : ''}</b><span>${timeAgo(post.createdAt)} <i>·</i> ${post.author.bot ? (post.article ? '우리 세이브의 축구 소식' : post.match?.source === 'summary' ? '입력한 기록으로 작성' : '가상 기자의 경기 이야기') : '익명의 감독'}</span></div><span class="post-kind ${post.kind}">${kinds[post.kind]}</span>${post.canDelete ? `<button class="icon-button subtle" data-action="delete-post" data-id="${post.id}" aria-label="게시글 삭제">${icon('trash')}</button>` : ''}</div>
+    ${post.match ? scoreBoard(post.match) : ''}${post.article ? `<div class="news-heading"><span>TOUCHLINE FOOTBALL · 가상 뉴스</span><h2>${esc(post.article.headline)}</h2></div>` : ''}<div class="post-body">${esc(post.body)}</div>
+    ${post.previewComments?.length && state.commentPost !== post.id ? `<section class="fan-preview"><div class="fan-caption">지금 팬들은 <span>AI 가상 팬 반응</span></div>${post.previewComments.map(c => `<div class="fan-line"><b>${esc(c.name)}</b><p>${esc(c.body)}</p></div>`).join('')}<button class="text-button" data-action="comments" data-id="${post.id}">나도 한마디 남기기 ${icon('arrow')}</button></section>` : ''}
+    ${post.capture?.hasImage ? `<details class="source-details"><summary>경기 자료 보기</summary><a class="capture-preview" href="/api/posts/${encodeURIComponent(post.id)}/image" target="_blank" rel="noopener"><img src="/api/posts/${encodeURIComponent(post.id)}/image" alt="기사 작성에 참고한 게임 화면" loading="lazy"></a></details>` : ''}
+    <div class="post-actions"><div class="reactions">${[['fire', '불붙었다'], ['laugh', '웃겨요'], ['salt', '긁혔어요']].map(([k, label]) => `<button class="reaction ${post.myReaction === k ? 'on' : ''}" data-action="react" data-id="${post.id}" data-kind="${k}" aria-label="${label}" aria-pressed="${post.myReaction === k}" title="${label}">${icon(k)}<span>${post.reactions[k] || 0}</span></button>`).join('')}</div><button class="comment-button" data-action="comments" data-id="${post.id}" aria-expanded="${state.commentPost === post.id}">${icon('chat')} ${state.commentPost === post.id ? '댓글 접기' : '댓글'} <b>${post.commentCount}</b></button></div>${state.commentPost === post.id ? inlineComments(post.id) : ''}</article>`;
 }
 function rightView() {
   const data = currentData();
@@ -158,7 +159,7 @@ function openModal(title, html, cls = '') {
   document.body.classList.add('modal-open');
   requestAnimationFrame(() => $('.modal input:not([type=radio]), .modal textarea, .modal button')?.focus());
 }
-function closeModal() { $('#modal-root').innerHTML = ''; document.body.classList.remove('modal-open'); state.commentPost = null; modalLastFocus?.focus?.(); }
+function closeModal() { $('#modal-root').innerHTML = ''; document.body.classList.remove('modal-open'); modalLastFocus?.focus?.(); }
 function authModal(mode) {
   const register = mode === 'register';
   openModal(register ? '라커룸에 오신 걸 환영해요.' : '감독님, 돌아오셨네요.', `<p class="modal-desc">${register ? '친구에게는 닉네임만. 우리 리그에서 새롭게 시작해요.' : '익명 계정으로 우리 리그에 입장하세요.'}</p><form id="auth-form" data-mode="${mode}">${register ? '<label>익명 닉네임<input name="alias" minlength="2" maxlength="20" placeholder="예: 전술은거들뿐" autocomplete="nickname" required></label>' : ''}<label>로그인 ID<input name="login" minlength="3" maxlength="32" pattern="[A-Za-z0-9_-]+" placeholder="영문·숫자 3~32자" autocomplete="username" required></label><label>비밀번호<input name="password" type="password" minlength="${register ? 10 : 1}" maxlength="128" placeholder="${register ? '10자 이상' : '비밀번호 입력'}" autocomplete="${register ? 'new-password' : 'current-password'}" required></label><div class="form-error" role="alert"></div><button class="button primary wide" type="submit">${register ? '계정 만들기' : '로그인'} ${icon('arrow')}</button></form><div class="modal-footer">${register ? '이미 계정이 있나요?' : '아직 계정이 없나요?'} <button class="text-button" data-action="${register ? 'login' : 'register'}">${register ? '로그인' : '계정 만들기'}</button></div>`);
@@ -185,15 +186,34 @@ function matchModal() {
   if (!requireUser()) return;
   openModal('휘슬이 울렸다면, 기록하세요.', `<p class="modal-desc">직접 확인한 경기 결과를 입력하세요. ${currentData().aiEnabled ? '로컬 AI가 기사와 가상의 팬 반응을 작성합니다.' : '입력한 사실로 요약을 만듭니다. 서버에 Ollama 모델을 연결하면 AI 기사도 쓸 수 있어요.'}</p><form id="match-form"><div class="form-columns"><label>홈 팀<input name="home" maxlength="40" placeholder="맨체스터 유나이티드" required></label><label>원정 팀<input name="away" maxlength="40" placeholder="아스널" required></label></div><div class="form-columns"><label>홈 스코어<input name="homeScore" type="number" min="0" max="99" value="0" required></label><label>원정 스코어<input name="awayScore" type="number" min="0" max="99" value="0" required></label></div><label>게임 내 날짜<input name="gameDate" maxlength="30" placeholder="예: 2026. 10. 24"></label><label>경기 메모 <span class="optional">선택</span><textarea name="note" rows="3" maxlength="2000" placeholder="득점자, 주요 장면 등 확인한 사실을 적어 주세요."></textarea></label><div class="form-error" role="alert"></div><button class="button primary wide" type="submit">${currentData().aiEnabled ? '기사와 팬 반응 생성' : '경기 요약 게시'} ${icon('spark')}</button></form>`);
 }
-async function commentsModal(postId) {
+function updateFeed() {
+  if (!$('#feed-list')) return;
+  const existingForm = $('#comment-form');
+  const active = document.activeElement;
+  const focused = active?.id === 'comment-body';
+  const start = focused ? active.selectionStart : 0, end = focused ? active.selectionEnd : 0;
+  const scroll = window.scrollY;
+  $('#feed-list').innerHTML = feedPosts();
+  const replacementForm = $('#comment-form');
+  if (existingForm && replacementForm?.dataset.postId === existingForm.dataset.postId) replacementForm.replaceWith(existingForm);
+  if (focused && $('#comment-body')) { $('#comment-body').focus({ preventScroll: true }); $('#comment-body').setSelectionRange(start, end); }
+  window.scrollTo({ top: scroll, behavior: 'instant' });
+}
+function inlineComments(postId) {
+  return `<section class="inline-comments" aria-label="게시글 댓글"><div id="comments-list" class="comments-list">${commentsList()}</div><form id="comment-form" data-post-id="${esc(postId)}"><label class="sr-only" for="comment-body">댓글 내용</label><textarea id="comment-body" name="body" rows="2" maxlength="1000" placeholder="팬들 사이에 한마디 남겨보세요…" required>${esc(state.commentDrafts[postId] || '')}</textarea><div class="inline-comment-bottom"><span>내 익명 닉네임으로 참여</span><button class="button primary small" type="submit">댓글 남기기 ${icon('send')}</button></div><div class="form-error" role="alert"></div></form></section>`;
+}
+async function toggleComments(postId) {
   const post = currentData().posts.find(p => p.id === postId);
   if (!post) return;
   if (state.demo) return authModal('register');
-  state.commentPost = postId;
-  const result = await api(`/posts/${postId}/comments`);
+  if (state.commentPost === postId) { state.commentPost = null; updateFeed(); return; }
+  state.commentPost = postId; state.comments = [];
+  let result;
+  try { result = await api(`/posts/${postId}/comments`); }
+  catch (error) { if (state.commentPost === postId) state.commentPost = null; throw error; }
   if (state.commentPost !== postId) return;
   state.comments = result.comments;
-  openModal('경기장 밖의 한마디', `<div class="comment-original"><b>${esc(post.author.alias)}</b><p>${esc(post.body.slice(0, 180))}${post.body.length > 180 ? '…' : ''}</p></div><div id="comments-list" class="comments-list">${commentsList()}</div><form id="comment-form"><label class="sr-only" for="comment-body">댓글 내용</label><textarea id="comment-body" name="body" rows="2" maxlength="1000" placeholder="여기에 한마디 보태기…" required></textarea><div class="form-error" role="alert"></div><button class="button primary" type="submit">댓글 남기기 ${icon('send')}</button></form>`, 'comments-modal');
+  updateFeed();
 }
 function commentsList() { return state.comments.length ? state.comments.map(c => `<div class="comment">${avatar(c.author, 'small-avatar')}<div><b>${esc(c.author.alias)}${c.author.bot ? '<span class="bot-badge">AI</span>' : ''}</b><p>${esc(c.body)}</p><small>${timeAgo(c.createdAt)}</small></div></div>`).join('') : '<p class="empty-comments">아직 조용하네요. 첫 댓글의 주인공이 되어 보세요.</p>'; }
 
@@ -209,7 +229,7 @@ async function refresh(quiet = false) {
     state.data = data;
     if (!quiet) render();
     else if (changed) {
-      if (state.view === 'feed') $('#feed-list').innerHTML = feedPosts();
+      if (state.view === 'feed') updateFeed();
       if (state.view === 'members') $('#main').innerHTML = membersView();
       if (state.view === 'messages' && !state.peer) $('#main').innerHTML = messagesView();
       $('#rightbar').innerHTML = rightView();
@@ -232,6 +252,7 @@ async function refresh(quiet = false) {
   } finally { refreshActive = false; }
 }
 async function selectRoom(roomId) {
+  state.commentPost = null; state.comments = [];
   state.roomId = roomId; state.demo = false; state.peer = null; state.view = 'feed'; state.filter = 'all'; state.search = ''; state.data = null;
   localStorage.setItem('touchline-room', roomId);
   closeModal();
@@ -292,7 +313,7 @@ document.addEventListener('click', async event => {
     if (action === 'search') { $('#search-wrap').hidden = false; $('#feed-search').focus(); return; }
     if (action === 'clear-search') { state.search = ''; $('#search-wrap').hidden = true; $('#feed-search').value = ''; $('#feed-list').innerHTML = feedPosts(); return; }
     if (action === 'react') { if (!requireUser()) return; await api(`/posts/${itemId}/reaction`, { method: 'POST', body: { kind: target.dataset.kind } }); await refresh(true); return; }
-    if (action === 'comments') return await commentsModal(itemId);
+    if (action === 'comments') return await toggleComments(itemId);
     if (action === 'dm') return await openDm(itemId);
     if (action === 'inbox') { state.peer = null; state.view = 'messages'; render(); return; }
     if (action === 'match') return matchModal();
@@ -301,7 +322,10 @@ document.addEventListener('click', async event => {
     if (action === 'logout') { await api('/auth/logout', { method: 'POST', body: {} }); state.user = null; state.rooms = []; state.roomId = ''; state.demo = true; state.data = null; state.peer = null; state.view = 'feed'; render(); return toast('로그아웃했어요. 다음 경기 때 만나요.'); }
   } catch (error) { toast(error.message); }
 });
-document.addEventListener('input', event => { if (event.target.id === 'feed-search') { state.search = event.target.value; $('#feed-list').innerHTML = feedPosts(); } });
+document.addEventListener('input', event => {
+  if (event.target.id === 'comment-body') state.commentDrafts[event.target.closest('form').dataset.postId] = event.target.value;
+  if (event.target.id === 'feed-search') { state.search = event.target.value; $('#feed-list').innerHTML = feedPosts(); }
+});
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') closeModal();
   const modal = $('.modal');
@@ -340,8 +364,9 @@ document.addEventListener('submit', async event => {
     }
     if (form.id === 'compose-form') { await api(`/rooms/${state.roomId}/posts`, { method: 'POST', body: data }); form.reset(); await refresh(true); toast('한마디 남겼어요. 이제 반응을 기다려 볼까요?'); }
     if (form.id === 'comment-form') {
-      const postId = state.commentPost;
+      const postId = form.dataset.postId;
       await api(`/posts/${postId}/comments`, { method: 'POST', body: data });
+      delete state.commentDrafts[postId];
       form.reset(); const result = await api(`/posts/${postId}/comments`);
       if (state.commentPost === postId && $('#comments-list')) { state.comments = result.comments; $('#comments-list').innerHTML = commentsList(); $('#comments-list').scrollTop = $('#comments-list').scrollHeight; }
       await refresh(true);
